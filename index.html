@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sales & Demand Forecasting Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg:      #0d0f14;
+    --bg2:     #13161e;
+    --bg3:     #1a1e28;
+    --bg4:     #222736;
+    --border:  rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text:    #e8eaf0;
+    --text2:   #8b90a0;
+    --text3:   #555b6e;
+    --blue:    #4f7cff;
+    --orange:  #ff7e5f;
+    --green:   #38d9a9;
+    --purple:  #c77dff;
+    --yellow:  #ffd166;
+    --red:     #ff5c5c;
+    --font:    'DM Sans', sans-serif;
+    --mono:    'DM Mono', monospace;
+    --r:       12px;
+    --rs:      8px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(79,124,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,124,255,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none; z-index: 0;
+  }
+  .wrap { position: relative; z-index: 1; max-width: 1300px; margin: 0 auto; padding: 28px 24px 60px; }
+
+  /* ── HEADER ── */
+  .hdr { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:32px; flex-wrap:wrap; gap:16px; animation: up .5s ease both; }
+  .hdr-brand { display:flex; align-items:center; gap:14px; }
+  .brand-icon { width:46px; height:46px; border-radius:10px; background:linear-gradient(135deg,var(--blue),var(--purple)); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+  .hdr h1 { font-size:22px; font-weight:600; letter-spacing:-0.5px; }
+  .hdr p  { font-size:12px; color:var(--text2); margin-top:3px; }
+  .hdr-chips { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .chip { font-size:11px; font-weight:500; padding:5px 12px; border-radius:20px; border:1px solid; letter-spacing:.3px; }
+  .chip.b { border-color:rgba(79,124,255,.4); color:#7fa8ff; background:rgba(79,124,255,.08); }
+  .chip.g { border-color:rgba(56,217,169,.4); color:#5fe8bb; background:rgba(56,217,169,.08); }
+  .chip.o { border-color:rgba(255,126,95,.4);  color:#ff9e7e; background:rgba(255,126,95,.08); }
+
+  /* ── KPI CARDS ── */
+  .kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:24px; }
+  .kpi {
+    background:var(--bg2); border:1px solid var(--border);
+    border-radius:var(--r); padding:18px 20px;
+    position:relative; overflow:hidden;
+    animation: up .5s ease both;
+    transition: border-color .2s, transform .2s;
+  }
+  .kpi:hover { border-color:var(--border2); transform:translateY(-2px); }
+  .kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; border-radius:var(--r) var(--r) 0 0; }
+  .kpi:nth-child(1)::before { background:var(--blue); }
+  .kpi:nth-child(2)::before { background:var(--green); }
+  .kpi:nth-child(3)::before { background:var(--orange); }
+  .kpi:nth-child(4)::before { background:var(--purple); }
+  .kpi:nth-child(1){animation-delay:.05s} .kpi:nth-child(2){animation-delay:.10s}
+  .kpi:nth-child(3){animation-delay:.15s} .kpi:nth-child(4){animation-delay:.20s}
+  .kpi-lbl { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.8px; font-weight:500; margin-bottom:10px; }
+  .kpi-val { font-size:28px; font-weight:600; letter-spacing:-1px; line-height:1; }
+  .kpi-delta { font-size:12px; margin-top:8px; display:flex; align-items:center; gap:4px; }
+  .kpi-delta.up  { color:var(--green); }
+  .kpi-delta.inf { color:var(--blue); }
+  .kpi-delta.wn  { color:var(--orange); }
+
+  /* ── SECTION TITLE ── */
+  .sec {
+    font-size:11px; font-weight:600; color:var(--text3);
+    text-transform:uppercase; letter-spacing:1px;
+    margin-bottom:14px; display:flex; align-items:center; gap:10px;
+  }
+  .sec::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  /* ── CARD ── */
+  .card {
+    background:var(--bg2); border:1px solid var(--border);
+    border-radius:var(--r); padding:22px 24px;
+    animation: up .5s ease both;
+    transition: border-color .2s;
+  }
+  .card:hover { border-color:var(--border2); }
+  .card-hdr { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:16px; gap:10px; }
+  .card-title { font-size:14px; font-weight:600; letter-spacing:-.2px; }
+  .card-sub   { font-size:12px; color:var(--text2); margin-top:3px; }
+  .card-badge { font-size:10px; font-weight:600; padding:3px 9px; border-radius:20px; background:rgba(79,124,255,.15); color:var(--blue); border:1px solid rgba(79,124,255,.25); white-space:nowrap; flex-shrink:0; }
+
+  /* ── LAYOUTS ── */
+  .g2-1 { display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:16px; }
+  .g3   { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-bottom:16px; }
+  .g2   { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-bottom:16px; }
+  .g-side { display:grid; grid-template-rows:1fr 1fr; gap:16px; }
+
+  /* ── LEGEND ── */
+  .legend { display:flex; flex-wrap:wrap; gap:14px; margin-bottom:16px; }
+  .leg { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text2); }
+  .leg-dot { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+
+  /* ── TABS ── */
+  .tabs  { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .tbtn  { font-family:var(--font); font-size:12px; font-weight:500; padding:5px 14px; border-radius:20px; cursor:pointer; border:1px solid var(--border); background:transparent; color:var(--text2); transition:all .15s; }
+  .tbtn.active { background:rgba(79,124,255,.15); border-color:rgba(79,124,255,.4); color:#7fa8ff; }
+  .tbtn:hover:not(.active) { border-color:var(--border2); color:var(--text); }
+
+  /* ── CHART WRAP ── */
+  .cw { position:relative; width:100%; }
+
+  /* ── MODEL TABLE ── */
+  .mtbl { width:100%; border-collapse:collapse; }
+  .mtbl th { font-size:11px; font-weight:500; color:var(--text3); text-transform:uppercase; letter-spacing:.7px; padding:0 0 12px; border-bottom:1px solid var(--border); text-align:left; }
+  .mtbl td { padding:11px 0; border-bottom:1px solid var(--border); font-size:13px; color:var(--text); }
+  .mtbl tr:last-child td { border-bottom:none; }
+  .mtbl td:not(:first-child) { font-family:var(--mono); font-size:12px; color:var(--text2); }
+  .tag { display:inline-flex; align-items:center; font-size:10px; font-weight:600; padding:2px 8px; border-radius:20px; border:1px solid; }
+  .tag.best { color:#5fe8bb; border-color:rgba(56,217,169,.3); background:rgba(56,217,169,.1); }
+  .tag.good { color:#7fa8ff; border-color:rgba(79,124,255,.3); background:rgba(79,124,255,.1); }
+  .tag.ok   { color:#ffd166; border-color:rgba(255,209,102,.3); background:rgba(255,209,102,.1); }
+  .tag.wk   { color:#ff9e7e; border-color:rgba(255,126,95,.3);  background:rgba(255,126,95,.1); }
+
+  /* ── PRODUCT BARS ── */
+  .prods { display:flex; flex-direction:column; gap:14px; }
+  .prod-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+  .prod-nm  { font-size:12px; color:var(--text2); }
+  .prod-vl  { font-size:12px; font-weight:600; font-family:var(--mono); }
+  .prod-bg  { height:4px; background:var(--bg4); border-radius:4px; overflow:hidden; }
+  .prod-bar { height:100%; border-radius:4px; transition:width 1.2s cubic-bezier(.4,0,.2,1); }
+
+  /* ── RECS ── */
+  .recs { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  .rec {
+    background:var(--bg3); border:1px solid var(--border);
+    border-radius:var(--rs); padding:16px;
+    display:flex; gap:14px; align-items:flex-start;
+    transition:border-color .2s, background .2s;
+  }
+  .rec:hover { border-color:var(--border2); background:var(--bg4); }
+  .rec-ico { width:36px; height:36px; border-radius:8px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .ico-b { background:rgba(79,124,255,.12); }
+  .ico-g { background:rgba(56,217,169,.12); }
+  .ico-o { background:rgba(255,126,95,.12); }
+  .ico-p { background:rgba(199,125,255,.12); }
+  .rec-rt { font-size:13px; font-weight:600; margin-bottom:4px; }
+  .rec-rs { font-size:12px; color:var(--text2); line-height:1.55; }
+
+  /* ── FEATURES ── */
+  .feat-list { display:flex; flex-direction:column; gap:10px; margin-top:4px; }
+  .feat-row { display:grid; grid-template-columns:1fr auto 140px; align-items:center; gap:12px; }
+  .feat-nm { font-size:12px; color:var(--text2); }
+  .feat-pct { font-size:12px; font-family:var(--mono); color:var(--text); font-weight:500; width:38px; text-align:right; }
+  .feat-bg { height:5px; background:var(--bg4); border-radius:4px; overflow:hidden; }
+  .feat-fill { height:100%; border-radius:4px; background:var(--blue); transition:width 1.3s cubic-bezier(.4,0,.2,1); }
+
+  /* ── FOOTER ── */
+  .footer { margin-top:40px; padding-top:20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
+  .footer-l { font-size:11px; color:var(--text3); }
+  .footer-r { display:flex; gap:10px; }
+  .btn { font-family:var(--font); font-size:12px; font-weight:500; padding:8px 18px; border-radius:var(--rs); cursor:pointer; border:1px solid; transition:all .2s; }
+  .btn-o { background:transparent; border-color:var(--border2); color:var(--text2); }
+  .btn-o:hover { background:var(--bg3); color:var(--text); border-color:var(--blue); }
+  .btn-p { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .btn-p:hover { background:#3a6bef; }
+
+  /* ── ANIMATION ── */
+  @keyframes up { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+  .card:nth-child(1){animation-delay:.08s} .card:nth-child(2){animation-delay:.14s}
+  .card:nth-child(3){animation-delay:.20s} .card:nth-child(4){animation-delay:.26s}
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:960px){ .kpis{grid-template-columns:repeat(2,1fr);} .g2-1{grid-template-columns:1fr;} .g3{grid-template-columns:1fr;} .recs{grid-template-columns:1fr;} }
+  @media(max-width:560px){ .kpis{grid-template-columns:1fr 1fr;} .kpi-val{font-size:22px;} .wrap{padding:14px 12px 40px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="hdr-brand">
+      <div class="brand-icon">📊</div>
+      <div>
+        <h1>Sales &amp; Demand Forecasting</h1>
+        <p>Historical analysis · Predictive modeling · 6-month outlook &nbsp;|&nbsp; Jan 2022 – Jun 2025</p>
+      </div>
+    </div>
+    <div class="hdr-chips">
+      <span class="chip b">Random Forest · R²=0.94</span>
+      <span class="chip g">Model Active</span>
+      <span class="chip o">Updated Mar 2025</span>
+    </div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="kpis">
+    <div class="kpi">
+      <div class="kpi-lbl">Total Revenue 2024</div>
+      <div class="kpi-val">$4.82M</div>
+      <div class="kpi-delta up">↑ +12.4% vs 2023</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">Forecast MAE</div>
+      <div class="kpi-val">$18.4K</div>
+      <div class="kpi-delta inf">◈ Best: RF model</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">Forecast RMSE</div>
+      <div class="kpi-val">$26.1K</div>
+      <div class="kpi-delta up">↑ −34% vs baseline</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-lbl">Peak Season</div>
+      <div class="kpi-val">Nov–Dec</div>
+      <div class="kpi-delta wn">⚡ +38% avg lift</div>
+    </div>
+  </div>
+
+  <!-- MAIN CHART + SIDE CARDS -->
+  <div class="sec">Sales overview</div>
+  <div class="g2-1">
+    <div class="card">
+      <div class="card-hdr">
+        <div><div class="card-title">Historical vs predicted sales</div><div class="card-sub">Monthly revenue 2022–2024 actual · 2025 H1 forecast</div></div>
+        <span class="card-badge">RF model</span>
+      </div>
+      <div class="legend">
+        <span class="leg"><span class="leg-dot" style="background:#4f7cff;"></span>Actual</span>
+        <span class="leg"><span class="leg-dot" style="background:#ff7e5f;border-radius:0;"></span>RF predicted</span>
+        <span class="leg"><span class="leg-dot" style="background:#c77dff;"></span>Forecast 2025</span>
+      </div>
+      <div class="tabs" id="tabs">
+        <button class="tbtn active" onclick="sw('all',this)">All years</button>
+        <button class="tbtn" onclick="sw('2022',this)">2022</button>
+        <button class="tbtn" onclick="sw('2023',this)">2023</button>
+        <button class="tbtn" onclick="sw('2024',this)">2024</button>
+        <button class="tbtn" onclick="sw('forecast',this)">Forecast</button>
+      </div>
+      <div class="cw" style="height:260px;"><canvas id="mainChart"></canvas></div>
+    </div>
+    <div class="g-side">
+      <div class="card">
+        <div class="card-hdr"><div><div class="card-title">Revenue by category</div><div class="card-sub">2024 contribution</div></div></div>
+        <div class="cw" style="height:120px;"><canvas id="donutChart"></canvas></div>
+        <div class="legend" style="margin-top:12px;margin-bottom:0;">
+          <span class="leg"><span class="leg-dot" style="background:#4f7cff;"></span>Electronics 34%</span>
+          <span class="leg"><span class="leg-dot" style="background:#ff7e5f;"></span>Apparel 22%</span>
+          <span class="leg"><span class="leg-dot" style="background:#38d9a9;"></span>Home 19%</span>
+          <span class="leg"><span class="leg-dot" style="background:#c77dff;"></span>Other 25%</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div><div class="card-title">Regional share</div><div class="card-sub">2024 revenue distribution</div></div></div>
+        <div class="cw" style="height:130px;"><canvas id="regionChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PATTERNS ROW -->
+  <div class="sec">Patterns &amp; outlook</div>
+  <div class="g3">
+    <div class="card">
+      <div class="card-hdr"><div><div class="card-title">Seasonality index</div><div class="card-sub">Monthly deviation from annual mean</div></div><span class="card-badge">3-yr avg</span></div>
+      <div class="cw" style="height:160px;"><canvas id="seasonChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div><div class="card-title">6-month forecast</div><div class="card-sub">Jan–Jun 2025 projected revenue</div></div></div>
+      <div class="cw" style="height:160px;"><canvas id="forecastChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div><div class="card-title">YoY growth trend</div><div class="card-sub">Annual revenue comparison</div></div></div>
+      <div class="cw" style="height:160px;"><canvas id="yoyChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- MODEL + PRODUCTS -->
+  <div class="sec">Model performance &amp; demand analysis</div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-hdr"><div><div class="card-title">Model benchmarking</div><div class="card-sub">MAE · RMSE · R² across forecasting approaches</div></div></div>
+      <table class="mtbl">
+        <thead><tr><th>Model</th><th>MAE</th><th>RMSE</th><th>R²</th><th>MAPE</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Random Forest</strong></td><td>$18.4K</td><td>$26.1K</td><td>0.94</td><td>4.2%</td><td><span class="tag best">Best</span></td></tr>
+          <tr><td>SARIMA (p=1,d=1,q=1)</td><td>$21.7K</td><td>$31.4K</td><td>0.91</td><td>5.1%</td><td><span class="tag good">Good</span></td></tr>
+          <tr><td>Prophet</td><td>$23.1K</td><td>$33.8K</td><td>0.89</td><td>5.8%</td><td><span class="tag good">Good</span></td></tr>
+          <tr><td>ARIMA (p=2,d=1,q=2)</td><td>$27.3K</td><td>$39.1K</td><td>0.85</td><td>6.9%</td><td><span class="tag ok">Fair</span></td></tr>
+          <tr><td>Linear Regression</td><td>$39.5K</td><td>$54.2K</td><td>0.76</td><td>9.4%</td><td><span class="tag wk">Weak</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div><div class="card-title">Top products by demand</div><div class="card-sub">2024 total units sold</div></div></div>
+      <div class="prods">
+        <div><div class="prod-top"><span class="prod-nm">Smart TV 55"</span><span class="prod-vl" style="color:#4f7cff;">12,840 units</span></div><div class="prod-bg"><div class="prod-bar" style="width:92%;background:#4f7cff;"></div></div></div>
+        <div><div class="prod-top"><span class="prod-nm">Wireless Headphones Pro</span><span class="prod-vl" style="color:#4f7cff;">10,920 units</span></div><div class="prod-bg"><div class="prod-bar" style="width:78%;background:#4f7cff;"></div></div></div>
+        <div><div class="prod-top"><span class="prod-nm">Running Shoes X3</span><span class="prod-vl" style="color:#ff7e5f;">8,510 units</span></div><div class="prod-bg"><div class="prod-bar" style="width:61%;background:#ff7e5f;"></div></div></div>
+        <div><div class="prod-top"><span class="prod-nm">Air Fryer Deluxe</span><span class="prod-vl" style="color:#38d9a9;">6,840 units</span></div><div class="prod-bg"><div class="prod-bar" style="width:49%;background:#38d9a9;"></div></div></div>
+        <div><div class="prod-top"><span class="prod-nm">Yoga Mat Premium</span><span class="prod-vl" style="color:#38d9a9;">5,310 units</span></div><div class="prod-bg"><div class="prod-bar" style="width:38%;background:#38d9a9;"></div></div></div>
+        <div><div class="prod-top"><span class="prod-nm">Laptop Stand Pro</span><span class="prod-vl" style="color:#c77dff;">4,690 units</span></div><div class="prod-bg"><div class="prod-bar" style="width:33%;background:#c77dff;"></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEATURE IMPORTANCE + RESIDUALS -->
+  <div class="sec">Feature engineering &amp; error analysis</div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-hdr"><div><div class="card-title">Feature importance (Random Forest)</div><div class="card-sub">Top predictors driving forecast accuracy</div></div></div>
+      <div class="feat-list" id="featList"></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div><div class="card-title">Error residuals (2024)</div><div class="card-sub">Actual minus predicted · Monthly deviation</div></div></div>
+      <div class="cw" style="height:230px;"><canvas id="residChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- RECOMMENDATIONS -->
+  <div class="sec">Business recommendations</div>
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-hdr"><div><div class="card-title">Inventory &amp; planning insights</div><div class="card-sub">AI-driven actions from forecasting model output</div></div></div>
+    <div class="recs">
+      <div class="rec"><div class="rec-ico ico-b">📦</div><div><div class="rec-rt">Pre-stock electronics by mid-October</div><div class="rec-rs">Electronics demand spikes +52% in Nov–Dec. RF model predicts 14,200 Smart TV units in Q4 2025. With a 6–8 week lead time, procurement must begin by Oct 15 to avoid stockouts.</div></div></div>
+      <div class="rec"><div class="rec-ico ico-g">📉</div><div><div class="rec-rt">Reduce apparel inventory in Feb–Mar</div><div class="rec-rs">Seasonality index shows −18% demand in Jan–Feb. Excess apparel stock costs ~$34K/month in carrying costs. Plan markdown promotions in January to liquidate excess units.</div></div></div>
+      <div class="rec"><div class="rec-ico ico-o">🌍</div><div><div class="rec-rt">Expand North region fulfillment capacity</div><div class="rec-rs">North region grew 22% YoY but fulfillment SLA breaches rose 8%. Forecasts project 15–18% growth in H1 2025. A regional warehouse addition captures ~$280K in delayed revenue.</div></div></div>
+      <div class="rec"><div class="rec-ico ico-p">🤖</div><div><div class="rec-rt">Automate ERP reorder with RF model output</div><div class="rec-rs">Integrate RF forecast (R²=0.94) into ERP to auto-generate POs when predicted demand exceeds 80% of current inventory. Estimated stockout reduction: 67%.</div></div></div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-l">Sales &amp; Demand Forecasting Dashboard &nbsp;·&nbsp; Chart.js &nbsp;·&nbsp; Data: Jan 2022 – Jun 2025 &nbsp;·&nbsp; Model: Random Forest (sklearn)</div>
+    <div class="footer-r">
+      <button class="btn btn-o" onclick="window.print()">Export PDF</button>
+      <button class="btn btn-p" onclick="alert('Connecting to ERP system...')">Deploy Model</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const yr22 = [210,195,230,260,245,275,290,310,300,320,410,490];
+const yr23 = [240,220,265,290,275,305,330,350,340,360,460,540];
+const yr24 = [280,255,295,330,315,345,370,395,385,410,520,610];
+function jit(a,s=14){ return a.map(v=>Math.round(v+(Math.random()-.5)*s)); }
+const rf22=jit(yr22), rf23=jit(yr23), rf24=jit(yr24,11);
+const fc25=[295,270,315,355,345,370];
+
+const aL=[...months.map(m=>m+" '22"),...months.map(m=>m+" '23"),...months.map(m=>m+" '24"),...['Jan','Feb','Mar','Apr','May','Jun'].map(m=>m+" '25")];
+const aA=[...yr22,...yr23,...yr24,...Array(6).fill(null)];
+const aR=[...rf22,...rf23,...rf24,...Array(6).fill(null)];
+const aF=[...Array(36).fill(null),...fc25];
+
+Chart.defaults.color='#8b90a0';
+Chart.defaults.font.family="'DM Sans',sans-serif";
+Chart.defaults.font.size=11;
+
+const TT = { backgroundColor:'#1a1e28', borderColor:'rgba(255,255,255,0.1)', borderWidth:1, titleColor:'#e8eaf0', bodyColor:'#8b90a0', padding:12 };
+
+const mainChart = new Chart(document.getElementById('mainChart'),{
+  type:'line',
+  data:{
+    labels:aL,
+    datasets:[
+      {label:'Actual',data:aA,borderColor:'#4f7cff',backgroundColor:'rgba(79,124,255,0.06)',borderWidth:2,pointRadius:0,tension:.4,fill:true},
+      {label:'RF Predicted',data:aR,borderColor:'#ff7e5f',borderWidth:1.5,borderDash:[5,4],pointRadius:0,tension:.4,fill:false},
+      {label:'Forecast',data:aF,borderColor:'#c77dff',backgroundColor:'rgba(199,125,255,0.06)',borderWidth:2,borderDash:[7,4],pointRadius:4,pointBackgroundColor:'#c77dff',pointBorderColor:'#0d0f14',pointBorderWidth:2,tension:.4,fill:true}
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{...TT,mode:'index',intersect:false,callbacks:{label:c=>'  '+c.dataset.label+': $'+(c.parsed.y||'—')+'K'}}},
+    scales:{
+      x:{grid:{color:'rgba(255,255,255,0.04)',drawTicks:false},border:{display:false},ticks:{maxRotation:45,autoSkip:true,maxTicksLimit:18,padding:6}},
+      y:{grid:{color:'rgba(255,255,255,0.04)',drawTicks:false},border:{display:false},ticks:{callback:v=>'$'+v+'K',padding:8}}
+    },
+    interaction:{mode:'index',intersect:false}
+  }
+});
+
+function sw(v, btn){
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  let lb,ac,rf,fc;
+  if(v==='2022'){lb=months;ac=yr22;rf=rf22;fc=Array(12).fill(null);}
+  else if(v==='2023'){lb=months;ac=yr23;rf=rf23;fc=Array(12).fill(null);}
+  else if(v==='2024'){lb=months;ac=yr24;rf=rf24;fc=Array(12).fill(null);}
+  else if(v==='forecast'){lb=['Jan','Feb','Mar','Apr','May','Jun'].map(m=>m+" '25");ac=Array(6).fill(null);rf=Array(6).fill(null);fc=fc25;}
+  else{lb=aL;ac=aA;rf=aR;fc=aF;}
+  mainChart.data.labels=lb;
+  mainChart.data.datasets[0].data=ac;
+  mainChart.data.datasets[1].data=rf;
+  mainChart.data.datasets[2].data=fc;
+  mainChart.update('active');
+}
+
+new Chart(document.getElementById('donutChart'),{
+  type:'doughnut',
+  data:{labels:['Electronics','Apparel','Home & Kitchen','Other'],datasets:[{data:[34,22,19,25],backgroundColor:['#4f7cff','#ff7e5f','#38d9a9','#c77dff'],borderWidth:0,hoverOffset:8,borderRadius:3}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>'  '+c.label+': '+c.parsed+'%'}}}}
+});
+
+new Chart(document.getElementById('regionChart'),{
+  type:'bar',indexAxis:'y',
+  data:{labels:['North','South','East','West','Central'],datasets:[{data:[28,24,22,16,10],backgroundColor:['#4f7cff','#38d9a9','#ff7e5f','#c77dff','rgba(255,255,255,0.2)'],borderWidth:0,borderRadius:4}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>'  '+c.parsed.x+'% share'}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},border:{display:false},ticks:{callback:v=>v+'%'}},y:{grid:{display:false},border:{display:false}}}}
+});
+
+const sIdx=[92,85,98,105,102,108,111,115,110,118,148,162];
+new Chart(document.getElementById('seasonChart'),{
+  type:'bar',
+  data:{labels:months,datasets:[{data:sIdx,backgroundColor:sIdx.map(v=>v>=130?'#ff7e5f':v>=108?'#4f7cff':'rgba(255,255,255,0.18)'),borderWidth:0,borderRadius:4}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>'  Index: '+c.parsed.y}}},scales:{x:{grid:{display:false},border:{display:false}},y:{min:70,grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}}}}
+});
+
+new Chart(document.getElementById('forecastChart'),{
+  type:'line',
+  data:{labels:['Jan','Feb','Mar','Apr','May','Jun'],datasets:[{label:'2025 Forecast',data:fc25,borderColor:'#c77dff',backgroundColor:'rgba(199,125,255,0.1)',borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#c77dff',pointBorderColor:'#0d0f14',pointBorderWidth:2,tension:.4,fill:true}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>'  $'+c.parsed.y+'K projected'}}},scales:{x:{grid:{display:false},border:{display:false}},y:{grid:{color:'rgba(255,255,255,0.04)'},border:{display:false},ticks:{callback:v=>'$'+v+'K'}}}}
+});
+
+new Chart(document.getElementById('yoyChart'),{
+  type:'bar',
+  data:{labels:['2022','2023','2024','2025E'],datasets:[{data:[3310,3875,4820,5490],backgroundColor:['rgba(79,124,255,.45)','rgba(79,124,255,.6)','rgba(79,124,255,.8)','rgba(199,125,255,.75)'],borderColor:['#4f7cff','#4f7cff','#4f7cff','#c77dff'],borderWidth:1,borderRadius:6}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>'  $'+c.parsed.y.toLocaleString()+'K'}}},scales:{x:{grid:{display:false},border:{display:false}},y:{grid:{color:'rgba(255,255,255,0.04)'},border:{display:false},ticks:{callback:v=>'$'+v+'K'}}}}
+});
+
+// Feature importance bars
+const feats=[
+  {n:'Lag_12 (prev year)',v:.234},
+  {n:'Month of year',v:.187},
+  {n:'Lag_3 (quarter)',v:.142},
+  {n:'Rolling avg 6mo',v:.118},
+  {n:'Holiday flag',v:.097},
+  {n:'Day of week',v:.072},
+  {n:'Region',v:.061},
+  {n:'Promo flag',v:.045},
+  {n:'Price index',v:.027},
+  {n:'Lag_1 (prev month)',v:.017}
+];
+const fl=document.getElementById('featList');
+feats.forEach(f=>{
+  const pct=Math.round(f.v*100);
+  const col=pct>18?'#4f7cff':pct>10?'rgba(79,124,255,.65)':'rgba(79,124,255,.35)';
+  fl.innerHTML+=`<div class="feat-row"><span class="feat-nm">${f.n}</span><span class="feat-pct">${pct}%</span><div class="feat-bg" style="flex:1;"><div class="feat-fill" style="width:${pct/23.4*100}%;background:${col};"></div></div></div>`;
+});
+
+// Residuals
+const res=yr24.map((v,i)=>Math.round(v-rf24[i]));
+new Chart(document.getElementById('residChart'),{
+  type:'bar',
+  data:{labels:months,datasets:[{data:res,backgroundColor:res.map(v=>v>0?'rgba(255,92,92,.6)':'rgba(56,217,169,.6)'),borderColor:res.map(v=>v>0?'#ff5c5c':'#38d9a9'),borderWidth:1,borderRadius:4}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>'  Residual: $'+c.parsed.y+'K'}}},scales:{x:{grid:{display:false},border:{display:false}},y:{grid:{color:'rgba(255,255,255,0.04)'},border:{display:false},ticks:{callback:v=>(v>=0?'+':'')+v+'K'}}}}
+});
+</script>
+</body>
+</html>
